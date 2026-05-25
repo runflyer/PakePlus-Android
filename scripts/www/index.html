@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no,viewport-fit=cover">
+<title>突击车间瞄射击诸元计算器</title>
+<script src="xlsx.full.min.js"></script>
+<style>
+/*
+  设计规范：
+  - 底色 #0a0a30（深蓝黑）
+  - 边框金色 #d4a838
+  - 标签文字 #e8d890（浅金）
+  - 按钮 #e88820（橙）
+  - flex流式布局，横竖屏自适应，跟随重力旋转
+*/
+:root {
+  --bg: #0a0a30;
+  --gold: #d4a838;
+  --txt-white: #ffffff;
+  --txt-label: #e8d890;
+  --btn-orange: #e88820;
+  --btn-hover: #f0a040;
+  --vmin: 1vmin;
+  --fs-title: calc(4.2 * var(--vmin));
+  --fs-time:  calc(2.2 * var(--vmin));
+  --fs-lbl:   calc(2.8 * var(--vmin));
+  --fs-subl:  calc(2.4 * var(--vmin));
+  --fs-unit:  calc(2.2 * var(--vmin));
+  --fs-un:    calc(1.5 * var(--vmin));
+  --fs-inp:   calc(3.2 * var(--vmin));
+  --fs-res:   calc(3.2 * var(--vmin));
+  --fs-res-un:calc(1.5 * var(--vmin));
+}
+*{margin:0;padding:0;box-sizing:border-box}
+
+html,body{
+  width:100%;height:100%;background:#000;overflow:hidden;
+  -webkit-overflow-scrolling:touch;
+  font-family:"Microsoft YaHei","PingFang SC",sans-serif;
+  /* 禁止页面级弹性滚动(但#app内部可滚动) */
+  position:fixed; overscroll-behavior:none;
+}
+
+/* 全屏自适应容器 */
+.wrap{
+  position:fixed;top:0;left:0;
+  width:100vw;height:100vh;
+}
+
+/* 主区域 — flex流式布局，横竖屏自适应，内容可滚动 */
+#app{
+  width:100%;height:100%;background:var(--bg);
+  display:flex;flex-direction:column;
+  overflow-y:auto; overflow-x:hidden;
+  -webkit-overflow-scrolling:touch;
+  padding:0 0.5cm;
+}
+
+/* ---- 标题区域（底部 = 页面1/8处，独立控制）---- */
+.title-section{
+  flex:0 0 calc(100vh / 8);
+  display:flex;flex-direction:column;
+}
+/* 时间区域（底部 = 页面1/5处，独立控制，不受标题移动影响） */
+.time-section{
+  flex:0 0 calc(100vh * (1/5 - 1/8));
+  display:flex;flex-direction:column;
+}
+.time-section .top-bar{
+  margin-top:auto; /* 时间栏推到容器底部 = 页面1/5处 */
+}
+/* 间距归零，输入框直接紧随 */
+.top-gap{
+  flex:0 0 0;
+  min-height:0;
+}
+
+/* ---- 标题 ---- */
+.title{
+  margin-top:auto; /* 推至容器底部 = 页面1/8处 */
+  flex-shrink:0;
+  display:flex;align-items:flex-end;justify-content:center;
+  color:var(--txt-white);font-size:var(--fs-title);font-weight:bold;
+  letter-spacing:0.5em;white-space:nowrap;
+  padding-bottom:min(0.8vh,0.2cm);
+}
+
+/* ---- 时间 + 加载 ---- */
+.top-bar{
+  flex-shrink:0;
+  margin-top:min(0.8vh,0.3cm);
+  display:flex;align-items:center;justify-content:space-between;
+  padding:min(0.6vh, 0.5%) 0;
+}
+.time{
+  color:var(--txt-white);font-size:var(--fs-time);letter-spacing:0.05em;
+}
+.load-area{display:flex;align-items:center;gap:calc(0.8*var(--vmin));}
+.load-btn{
+  padding:calc(0.9*var(--vmin)) calc(2.3*var(--vmin));background:var(--btn-orange);color:#fff;
+  border:none;border-radius:calc(0.3*var(--vmin));cursor:pointer;font-weight:bold;
+  font-size:calc(2.1*var(--vmin));white-space:nowrap;
+}
+.load-btn:hover{background:var(--btn-hover)}
+.st{font-size:var(--fs-time);font-weight:bold;white-space:nowrap}
+.st-pend{color:#999}.st-ok{color:#4caf50}.st-fail{color:#e74c3c}
+
+/* ---- 输入框区域（金色边框）---- */
+.input-box{
+  flex:5 5 0%;min-height:0;
+  border:2px solid var(--gold);border-radius:6px;
+  display:flex;flex-direction:column;justify-content:space-evenly;
+  padding:min(1.5vh,0.68cm) 1.5%;
+  margin:min(0.6vh,0.2cm) 0;
+}
+/* 输入框下方的弹性垫片，占剩余空间1/6，使输入框高度缩减1/6 */
+.input-spacer{
+  flex:1 1 0%;min-height:0;
+}
+/* ---- 底部区域（从按钮到屏幕底 = 1/3 屏高 + 按钮中心偏移）---- */
+.bottom-wrap{
+  flex:0 0 calc(100vh / 3 + 1.5vh);
+  display:flex;flex-direction:column;
+}
+/* 按钮与结果之间的弹性间距 */
+.mid-spacer{
+  flex:1 1 0%;min-height:0;
+}
+/* 结果下方间距（使结果行位于从下往上约1/7处） */
+.bot-spacer{
+  flex:0 0 calc(100vh * 1/7 - 1.5vh);
+  min-height:0;
+}
+
+/* 每行 */
+.irow{
+  display:flex;align-items:center;width:100%;
+  flex:0 0 auto;
+}
+
+.lbl{
+  color:var(--txt-label);font-size:var(--fs-lbl);font-weight:bold;
+  white-space:nowrap;flex-shrink:0;margin-right:0.5cm;
+}
+.subl{
+  color:var(--txt-label);font-size:var(--fs-subl);
+  white-space:nowrap;margin-right:min(0.3vh,0.15cm);flex-shrink:0;
+}
+.unit{
+  color:var(--txt-label);font-size:var(--fs-unit);
+  white-space:nowrap;flex-shrink:0;
+}
+.un{
+  color:var(--txt-label);font-size:var(--fs-un);
+  white-space:nowrap;margin-right:0;flex-shrink:0;
+}
+
+.inp{
+  height:min(3.2vh,1.0cm);min-height:26px;border:none;border-radius:3px;
+  background:#fff;color:#000;
+  font-family:"Courier New",monospace;font-size:var(--fs-inp);padding:0 0.5%;
+  outline:none;flex:1 1 auto;min-width:0;margin-right:min(0.8vh,0.4cm);font-weight:bold;
+}
+.unit+.inp{margin-left:min(0.3vh,0.15cm)}
+.inp:focus{outline:2px solid #888}
+.inp.err{outline:2px solid #e74c3c}
+
+/* 各行flex比例 */
+.rgun .xg{flex:2}.rgun .yg{flex:2}.rgun .hg{flex:1.5;margin-right:0.2cm}
+.rtgt .xt{flex:2}.rtgt .yt{flex:2}.rtgt .ht{flex:1.5;margin-right:0.2cm}
+.rwx .un{margin-right:0}.rwx .ws{flex:3.3;margin-right:0.2cm}.rwx .wd{flex:3.3;margin-right:0.2cm}.rwx .pr{flex:3.3;margin-right:0.2cm}.rwx .tm{flex:3.3;margin-right:0.2cm}
+.ram .vl{flex:1.7}.ram .pt{flex:1.7}.ram .wt{flex:1.7;margin-right:0.2cm}
+
+/* ---- 解算按钮 ---- */
+.btn-row{
+  flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  padding:min(1vh, 0.8%) 0;
+}
+.calc-btn{
+  padding:calc(1.7*var(--vmin)) calc(5.8*var(--vmin));background:var(--btn-orange);color:#fff;
+  border:none;border-radius:calc(0.5*var(--vmin));cursor:pointer;font-weight:bold;
+  font-size:calc(3.0*var(--vmin));letter-spacing:0.6em;
+}
+.calc-btn:hover{background:var(--btn-hover)}
+
+/* ---- 结果区 ---- */
+.res-row{
+  flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;gap:calc(10 * var(--vmin));
+}
+.res-item{display:flex;align-items:center;gap:calc(0.3*var(--vmin))}
+.res-lbl{color:var(--gold);font-size:var(--fs-res);font-weight:bold;letter-spacing:0.15em}
+.res-un{color:var(--txt-label);font-size:var(--fs-res-un)}
+.res-inp{
+  width:calc(18*var(--vmin));min-width:80px;
+  height:calc(6.4*var(--vmin));min-height:32px;border:none;border-radius:3px;
+  background:#fff;color:#000;text-align:center;
+  font-family:"SimHei","黑体",sans-serif;font-size:var(--fs-res);font-weight:bold;
+}
+
+/* Toast */
+.toast{
+  position:fixed;top:30px;left:50%;transform:translateX(-50%);z-index:9999;
+  padding:8px 24px;border-radius:6px;font-size:calc(2.5*var(--vmin));font-weight:bold;
+  opacity:0;transition:opacity .3s;pointer-events:none;
+  background:#333;color:#fff;white-space:nowrap;
+}
+.toast.show{opacity:1}
+.toast.error{background:#e74c3c}.toast.success{background:#4caf50}
+.toast.warn{background:#f39c12;color:#1a1a2e}
+</style>
+</head>
+<body>
+
+<div class="wrap"><div id="app">
+
+<div class="title-section">
+
+<div class="title">突击车间瞄射击诸元计算器</div>
+
+</div>
+
+<div class="time-section">
+
+<div class="top-bar">
+  <span class="time" id="curTime">----年--月--日--时--分--秒星期-</span>
+  <div class="load-area">
+    <button class="load-btn" onclick="UI.loadFT()">加载射表</button>
+    <span class="st st-pend" id="st">射表待加载</span>
+  </div>
+</div>
+
+</div>
+
+<div class="top-gap"></div>
+
+<div class="input-box">
+
+  <!-- 炮位坐标 -->
+  <div class="irow rgun">
+    <span class="lbl">炮位坐标</span>
+    <span class="subl">X</span><input class="inp xg" id="gx" maxlength="5" inputmode="numeric" oninput="UI.coord(this,5)">
+    <span class="subl">Y</span><input class="inp yg" id="gy" maxlength="5" inputmode="numeric" oninput="UI.coord(this,5)">
+    <span class="unit">高程</span><span class="un">（m）</span><input class="inp hg" id="gh" maxlength="5" inputmode="numeric">
+  </div>
+
+  <!-- 目标坐标 -->
+  <div class="irow rtgt">
+    <span class="lbl">目标坐标</span>
+    <span class="subl">X</span><input class="inp xt" id="tx" maxlength="5" inputmode="numeric" oninput="UI.coord(this,5)">
+    <span class="subl">Y</span><input class="inp yt" id="ty" maxlength="5" inputmode="numeric" oninput="UI.coord(this,5)">
+    <span class="unit">高程</span><span class="un">（m）</span><input class="inp ht" id="th" maxlength="5" inputmode="numeric">
+  </div>
+
+  <!-- 气象条件 -->
+  <div class="irow rwx">
+    <span class="lbl">气象条件</span>
+    <span class="unit">风速</span><span class="un">（m/s）</span><input class="inp ws" id="ws" inputmode="decimal" oninput="UI.pre()">
+    <span class="unit">风向</span><span class="un">（密位）</span><input class="inp wd" id="wd" inputmode="numeric" maxlength="4" oninput="UI.pre()">
+    <span class="unit">气压</span><span class="un">（mmHg）</span><input class="inp pr" id="pr" inputmode="decimal">
+    <span class="unit">气温</span><span class="un">（℃）</span><input class="inp tm" id="tm" inputmode="decimal">
+  </div>
+
+  <!-- 弹药条件 -->
+  <div class="irow ram">
+    <span class="lbl">弹药条件</span>
+    <span class="unit">初速</span><span class="un">（%）</span><input class="inp vl" id="vl" inputmode="decimal">
+    <span class="unit">药温</span><span class="un">（℃）</span><input class="inp pt" id="pt" inputmode="decimal">
+    <span class="unit">弹重符号</span><input class="inp wt" id="wt" inputmode="decimal">
+  </div>
+
+</div>
+
+<div class="input-spacer"></div>
+
+<div class="bottom-wrap">
+
+<div class="btn-row">
+  <button class="calc-btn" onclick="UI.calc()">解算诸元</button>
+</div>
+
+<div class="mid-spacer"></div>
+
+<div class="res-row">
+  <div class="res-item">
+    <span class="res-lbl">表尺</span><span class="res-un">（密位）</span>
+    <input class="res-inp" id="rs" readonly>
+  </div>
+  <div class="res-item">
+    <span class="res-lbl">方向</span><span class="res-un">（密位）</span>
+    <input class="res-inp" id="rd" readonly>
+  </div>
+</div>
+
+<div class="bot-spacer"></div>
+
+</div>
+
+</div></div>
+
+<div class="toast" id="toast"></div>
+<input type="file" id="fileInp" accept="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,.xlsx" style="position:absolute;opacity:0;width:0;height:0;overflow:hidden" onchange="UI.file(event)">
+
+<script>
+// ============ 数据层 ============
+const DL=(()=>{
+  const K='ft',R=['距离','表尺密位','表尺改变1密位距离改变量',
+    '表尺改变1密位落点高低改变量','偏流','横风','纵风','气压','气温','初速','药温','弹重符号'];
+  function nm(s){
+    s=String(s||'').trim().replace(/\s+/g,'');
+    const m={
+      '横风10米/秒（密位）':'横风','横风10米/秒(密位)':'横风','横风':'横风',
+      '纵风10米/秒（米）':'纵风','纵风10米/秒(米)':'纵风','纵风':'纵风',
+      '气压（10毫米）（米）':'气压','气压（10毫米）':'气压','气压(10毫米)(米)':'气压','气压(10毫米)':'气压','气压':'气压',
+      '气温（10度）（米）':'气温','气温（10度）':'气温','气温(10度)(米)':'气温','气温(10度)':'气温','气温':'气温',
+      '初速（1%）（米）':'初速','初速（1%）':'初速','初速(1%)(米)':'初速','初速(1%)':'初速','初速':'初速',
+      '药温（10度）（米）':'药温','药温（10度）':'药温','药温(10度)(米)':'药温','药温(10度)':'药温','药温':'药温',
+      '增加一个弹重符号（米）':'弹重符号','增加一个弹重符号':'弹重符号','弹重符号':'弹重符号',
+      '距离（米）':'距离','距离':'距离',
+      '表尺（密位）':'表尺密位','表尺密位':'表尺密位','表尺分划':'表尺密位',
+      '表尺改变1密位距离改变量（米）':'表尺改变1密位距离改变量','表尺改变1密位距离改变量':'表尺改变1密位距离改变量',
+      '表尺改变1密位落点高低改变量（米）':'表尺改变1密位落点高低改变量','表尺改变1密位落点高低改变量':'表尺改变1密位落点高低改变量',
+      '偏流（密位）':'偏流','偏流':'偏流'};
+    if(m[s])return m[s];
+    const c=s.match(/[\u4e00-\u9fa5]+/g);if(!c)return s;
+    const j=c.join('');
+    if(j.includes('横风'))return'横风';if(j.includes('纵风'))return'纵风';
+    if(j.includes('气压'))return'气压';if(j.includes('气温'))return'气温';
+    if(j.includes('初速'))return'初速';if(j.includes('药温'))return'药温';
+    if(j.includes('弹重'))return'弹重符号';
+    if(j.includes('距离')&&j.includes('改变'))return'表尺改变1密位距离改变量';
+    if(j.includes('距离'))return'距离';
+    if(j.includes('表尺密位')||j.includes('表尺分划'))return'表尺密位';
+    if(j.includes('改变')&&j.includes('落点'))return'表尺改变1密位落点高低改变量';
+    if(j.includes('偏流'))return'偏流';return s;
+  }
+  function val(rows){
+    if(!rows||rows.length<2)return{r:null,s:"数据为空"};
+    const hd=rows[0].map(nm);
+    for(const k of R)if(!hd.includes(k))return{r:null,s:'缺列:'+k};
+    const ci={};R.forEach(k=>{ci[k]=hd.indexOf(k)});
+    const d=[];
+    for(let i=1;i<rows.length;i++){
+      const rw=rows[i];if(!rw||rw.every(c=>c===undefined||c===null||String(c).trim()===''))continue;
+      const e={};
+      for(const k of R){
+        const v=rw[ci[k]];
+        if(v===undefined||v===null||String(v).trim()==='')return{r:null,s:`第${i+1}行"${k}"空`};
+        const n=Number(v);if(isNaN(n))return{r:null,s:`第${i+1}行"${k}"非数:${v}`};
+        e[k]=n;
+      }
+      d.push(e);
+    }
+    if(d.length<2)return{r:null,s:'行数不足'};
+    for(let i=1;i<d.length;i++)if(d[i]['距离']<=d[i-1]['距离'])return{r:null,s:`距离未升序(${i+1})`};
+    return{r:d,s:null};
+  }
+  function save(d){try{localStorage.setItem(K,JSON.stringify(d));return 1}catch(e){return 0}}
+  function load(){
+    try{const r=localStorage.getItem(K);if(!r)return null;
+      const d=JSON.parse(r);if(!Array.isArray(d)||d.length<2)return null;
+      for(const x of d)if(typeof x['距离']!=='number')return null;return d;
+    }catch(e){return null;}
+  }
+  return{R,val,save,load};
+})();
+
+// ============ 弹道层 ============
+const BL=(()=>{
+  const SP=760,TMP=15,PT=15,MILS=6000,RAD=(2*Math.PI)/MILS;
+  function d2(gx,gy,tx,ty){return Math.hypot(tx-gx,ty-gy)}
+  function dir(gx,gy,tx,ty){let r=Math.atan2(ty-gy,tx-gx);if(r<0)r+=2*Math.PI;return Math.round(r/RAD)%MILS}
+  function wnd(ws,wd,fd){
+    let b=((wd+3000)-fd+MILS)%MILS;if(b>3000)b-=MILS;
+    const rad=b*RAD,lw=ws*Math.cos(rad),cw=ws*Math.sin(rad);
+    return{lw,cw,lS:Math.abs(lw)<0.01?'无纵风':lw>0?'顺风':'逆风',cS:Math.abs(cw)<0.01?'无横风':cw>0?'左风':'右风'};
+  }
+  function fnd(t,d){
+    // 坐标距离a需满足: 0≤a-b<100, 允许多出最后一行99米
+    if(d<t[0]['距离']||d>=t[t.length-1]['距离']+100)return{err:'超出射表范围'};
+    for(let i=0;i<t.length;i++)if(d-t[i]['距离']>=0&&d-t[i]['距离']<100)return{i,r:t[i]};
+    return{err:'超出射表范围'};
+  }
+  // 插值辅助: diff*(nextVal-curVal)/100+curVal
+  function ip(diff,next,cur){return diff*(next-cur)/100+cur}
+  // 获取下一行值(末行返回自身)
+  function nv(t,i,key){return i<t.length-1?t[i+1][key]:t[i][key]}
+  function solve(p,t){
+    // a=坐标距离, 查e行: 0≤a-b<100
+    const a=d2(p.gx,p.gy,p.tx,p.ty),cdr=dir(p.gx,p.gy,p.tx,p.ty),
+      w=wnd(p.ws,p.wd,cdr),be=fnd(t,a);
+    if(be.err)return{err:be.err};
+    const re=be.r,ei=be.i,b=re['距离'],dab=a-b; // dab=a-b
+    // 所有修正系数通过(a-b)在e行插值
+    const nC=ip(dab,nv(t,ei,'纵风'),re['纵风']),
+      pC=ip(dab,nv(t,ei,'气压'),re['气压']),
+      qC=ip(dab,nv(t,ei,'气温'),re['气温']),
+      rC=ip(dab,nv(t,ei,'初速'),re['初速']),
+      sC=ip(dab,nv(t,ei,'药温'),re['药温']),
+      tC=ip(dab,nv(t,ei,'弹重符号'),re['弹重符号']);
+    // 各项差值 = 插值系数 × 条件偏差
+    const dl=nC*w.lw/10, dp=pC*((760-p.pr)/10), dt=qC*((p.tm-15)/10),
+      dv=rC*p.vl, dpt=sC*((p.pt-15)/10), dw=tC*p.wt;
+    // 表尺距离 = a - 纵风 - 气压 - 气温 - 初速 - 药温 + 弹重
+    const sd=a-dl-dp-dt-dv-dpt+dw,bf=fnd(t,sd);
+    if(bf.err)return{err:bf.err};
+    const rf=bf.r,fi=bf.i,c=rf['距离'],dsd=sd-c; // dsd=表尺距离-c
+    // j=表尺改变1密位距离改变量, k=表尺改变1密位落点高低改变量
+    const jI=ip(dsd,nv(t,fi,'表尺改变1密位距离改变量'),rf['表尺改变1密位距离改变量']);
+    // 高低密位=(目标高程-炮位高程)÷[(a-b)×k插值], 注意分母用(a-b)而非(表尺距离-c)
+    const dh=p.th-p.gh, kI=ip(dab,nv(t,fi,'表尺改变1密位落点高低改变量'),rf['表尺改变1密位落点高低改变量']);
+    const hc=(dh!==0&&kI!==0)?dh/kI:0;
+    // 表尺密位 = 表尺距离÷j插值 + 高低密位
+    const scale=(jI!==0?sd/jI:0)+hc;
+    // 偏流差值、横风差值 从e行用(a-b)插值
+    const lI=ip(dab,nv(t,ei,'偏流'),re['偏流']);
+    const mI=ip(dab,nv(t,ei,'横风'),re['横风']);
+    // 方向 = 坐标方向 + 偏流差值 - 横风差值
+    const dirRet=(cdr+lI-mI*w.cw/10+MILS)%MILS;
+    return{scale,dir:dirRet,
+      detail:{a,b,dab,ei,cdr,lw:w.lw,cw:w.cw,lS:w.lS,cS:w.cS,
+        dl,dp,dt,dv,dpt,dw,sd,c,dsd,fi,nC,pC,qC,rC,sC,tC,jI,kI,lI,mI,hc}};
+  }
+  function pre(gx,gy,tx,ty,ws,wd){
+    if(isNaN(gx)||isNaN(gy)||isNaN(tx)||isNaN(ty))return null;
+    const cd=d2(gx,gy,tx,ty),cdr=dir(gx,gy,tx,ty);
+    if(ws!=null&&wd!=null){const w=wnd(ws,wd,cdr);return{cd,cdr,...w};}
+    return{cd,cdr};
+  }
+  return{dist:d2,dir,wnd,fnd,solve,pre,MILS};
+})();
+
+// ============ UI层 ============
+const UI=(()=>{
+  let tbl=null;
+  const WD='日一二三四五六'.split('').map(s=>'星期'+s);
+  function $(id){const e=document.getElementById(id);return e?e.value:''}
+  function gv(id){const e=document.getElementById(id);return e?parseFloat(e.value):NaN}
+  const ALL_INPS=['gx','gy','gh','tx','ty','th','ws','wd','pr','tm','vl','pt','wt'];
+  function saveInputs(){
+    try{var o={};ALL_INPS.forEach(function(k){var e=document.getElementById(k);if(e)o[k]=e.value});sessionStorage.setItem('inp_vals',JSON.stringify(o))}catch(e){}
+  }
+  function restoreInputs(){
+    try{var s=sessionStorage.getItem('inp_vals');if(s){var o=JSON.parse(s);ALL_INPS.forEach(function(k){if(o[k]!==undefined){var e=document.getElementById(k);if(e)e.value=o[k]}})};}catch(e){}
+  }
+
+  function init(){
+    tick();setInterval(tick,1000);
+    const d=DL.load();if(d){tbl=d;s('ok','已加载');}else s('pend','射表待加载');
+    // 从sessionStorage恢复输入值（旋转时Activity重建，数据不丢失）
+    restoreInputs();
+    ['gx','gy','tx','ty','ws','wd'].forEach(id=>{
+      const e=document.getElementById(id);if(e)e.addEventListener('input',pre);
+    });
+    // 所有输入框变化时自动保存到sessionStorage
+    ALL_INPS.forEach(function(id){
+      var el=document.getElementById(id);
+      if(el) el.addEventListener('input',saveInputs);
+    });
+    document.addEventListener('click',e=>{
+      if(e.target.tagName!=='INPUT'&&e.target.tagName!=='BUTTON'&&
+        document.activeElement&&document.activeElement.tagName==='INPUT')
+        document.activeElement.blur();
+    });
+    document.addEventListener('keydown',e=>{
+      if(e.key==='Enter'&&document.activeElement&&document.activeElement.tagName==='INPUT'){
+        e.preventDefault();calc();
+      }
+    });
+    // 尝试解锁屏幕方向（如果被某些插件或系统锁定）
+    try {
+      if(screen.orientation && screen.orientation.unlock) screen.orientation.unlock();
+    } catch(e) {}
+    // 初始布局
+    lockLayout();
+    // resize 事件
+    window.addEventListener('resize', lockLayout);
+    // screen.orientation API 监听方向变化
+    if(screen.orientation){
+      screen.orientation.addEventListener('change', function(){
+        // Android WebView 在 configChanges="orientation" 模式下
+        // window.innerWidth/Height 不会立即更新，需要多阶段延迟
+        [0, 100, 300, 600].forEach(function(d){setTimeout(lockLayout, d);});
+      });
+    }
+  }
+
+  function lockLayout(){
+    var h=window.innerHeight,w=window.innerWidth;
+    // 如果尺寸为0（极少数情况），使用 screen 兜底
+    if(!h||!w){h=screen.height;w=screen.width;}
+    var wrap=document.querySelector('.wrap');
+    if(wrap){
+      wrap.style.width='100vw';
+      wrap.style.height='100vh';
+      wrap.style.left='0';
+      wrap.style.top='0';
+    }
+    // 更新CSS变量，让所有vw/vh/vmin使用当前视口像素值
+    var root=document.documentElement.style;
+    root.setProperty('--vw',(w/100)+'px');
+    root.setProperty('--vh',(h/100)+'px');
+    root.setProperty('--vmin',Math.min(w,h)/100+'px');
+  }
+
+  function tick(){
+    const n=new Date();
+    document.getElementById('curTime').textContent=
+      n.getFullYear()+'年'+(n.getMonth()+1)+'月'+n.getDate()+'日'+
+      String(n.getHours()).padStart(2,'0')+'时'+
+      String(n.getMinutes()).padStart(2,'0')+'分'+
+      String(n.getSeconds()).padStart(2,'0')+'秒 '+WD[n.getDay()];
+  }
+
+  function s(k,t){
+    const e=document.getElementById('st');
+    e.textContent=t;e.className='st st-'+k;
+  }
+
+  function toa(m,t){
+    const e=document.getElementById('toast');
+    e.textContent=m;e.className='toast '+t+' show';
+    clearTimeout(e._t);e._t=setTimeout(()=>e.classList.remove('show'),2000);
+  }
+
+  function ld(){document.getElementById('fileInp').click()}
+
+  function file(ev){
+    const f=ev.target.files[0];if(!f)return;
+    if(!f.name.toLowerCase().endsWith('.xlsx')){s('fail','格式错');toa('必须是.xlsx','error');ev.target.value='';return;}
+    const rd=new FileReader();
+    rd.onload=function(e){
+      try{
+        const wb=XLSX.read(new Uint8Array(e.target.result),{type:'array'}),
+          rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,defval:null}),
+          r=DL.val(rows);
+        if(!r.r){s('fail',r.s);toa(r.s,'error');}
+        else{tbl=r.r;DL.save(r.r);s('ok','加载成功');toa('加载 '+r.r.length+' 行','success');pre();}
+      }catch(err){s('fail','解析失败');toa(err.message,'error');}
+      ev.target.value='';
+    };
+    rd.onerror=()=>{s('fail','读取失败');toa('读取失败','error');ev.target.value='';};
+    rd.readAsArrayBuffer(f);
+  }
+
+  function coord(el,n){
+    el.value=el.value.replace(/[^0-9]/g,'');
+    if(el.value.length>n)el.value=el.value.slice(0,n);
+    el.classList.remove('err');pre();
+  }
+
+  function read(){
+    const fields=[
+      {id:'gx',len:5,l:'炮位X'},{id:'gy',len:5,l:'炮位Y'},
+      {id:'gh',mn:-500,mx:9000,l:'炮位高程'},
+      {id:'tx',len:5,l:'目标X'},{id:'ty',len:5,l:'目标Y'},
+      {id:'th',mn:-500,mx:9000,l:'目标高程'},
+      {id:'ws',mn:0,mx:99,l:'风速'},{id:'wd',mn:0,mx:5999,l:'风向'},
+      {id:'pr',mn:500,mx:900,l:'气压'},{id:'tm',mn:-60,mx:70,l:'气温'},
+      {id:'vl',mn:-30,mx:30,l:'初速偏差'},{id:'pt',mn:-60,mx:70,l:'药温'},
+      {id:'wt',mn:-10,mx:10,l:'弹重符号'}
+    ];
+    const p={},e=[];
+    for(const f of fields){
+      const el=document.getElementById(f.id),v=el.value.trim();
+      if(!v){e.push(f.l+'为空');el.classList.add('err');continue;}
+      if(f.len&&v.length!==f.len){e.push(f.l+'需'+f.len+'位');el.classList.add('err');continue;}
+      const n=Number(v);if(isNaN(n)){e.push(f.l+'非数');el.classList.add('err');continue;}
+      if(f.mn!==undefined&&n<f.mn){e.push(f.l+'<'+f.mn);el.classList.add('err');continue;}
+      if(f.mx!==undefined&&n>f.mx){e.push(f.l+'>'+f.mx);el.classList.add('err');continue;}
+      el.classList.remove('err');
+      if(f.id==='gx')p.gx=n;else if(f.id==='gy')p.gy=n;
+      else if(f.id==='gh')p.gh=n;
+      else if(f.id==='tx')p.tx=n;else if(f.id==='ty')p.ty=n;
+      else if(f.id==='th')p.th=n;
+      else p[f.id]=n;
+    }
+    return e.length?{ok:0,p:null,e}:{ok:1,p,e:[]};
+  }
+
+  function pre(){
+    const gx=gv('gx'),gy=gv('gy'),tx=gv('tx'),ty=gv('ty'),
+      ws=gv('ws'),wd=gv('wd');
+    if(isNaN(gx)||isNaN(gy)||isNaN(tx)||isNaN(ty))return;
+    BL.pre(gx,gy,tx,ty,isNaN(ws)?null:ws,isNaN(wd)?null:wd);
+  }
+
+  function calc(){
+    if(!tbl){toa('请先加载射表','warn');return;}
+    const ri=read();if(!ri.ok){toa(ri.e[0],'error');return;}
+    const r=BL.solve(ri.p,tbl);
+    if(r.err){toa(r.err,'error');
+      document.getElementById('rs').value='';document.getElementById('rd').value='';return;}
+    document.getElementById('rs').value=r.scale.toFixed(2);
+    document.getElementById('rd').value=r.dir.toFixed(2);
+    toa('解算完成','success');console.log('detail',r.detail);
+  }
+
+  return{init,ld,loadFT:ld,file,coord,pre,calc};
+})();
+
+document.addEventListener('DOMContentLoaded',()=>UI.init());
+</script>
+
+</body>
+</html>
