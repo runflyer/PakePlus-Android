@@ -21,16 +21,7 @@
   --txt-label: #e8d890;
   --btn-orange: #e88820;
   --btn-hover: #f0a040;
-  --vmin: 1vmin;
-  --fs-title: calc(4.2 * var(--vmin));
-  --fs-time:  calc(2.2 * var(--vmin));
-  --fs-lbl:   calc(2.8 * var(--vmin));
-  --fs-subl:  calc(2.4 * var(--vmin));
-  --fs-unit:  calc(2.2 * var(--vmin));
-  --fs-un:    calc(1.5 * var(--vmin));
-  --fs-inp:   calc(3.2 * var(--vmin));
-  --fs-res:   calc(3.2 * var(--vmin));
-  --fs-res-un:calc(1.5 * var(--vmin));
+  /* --vmin 和 --fs-* 由 JS 在 <head> 中设为固定 px 值，不再定义动态默认值 */
 }
 *{margin:0;padding:0;box-sizing:border-box}
 
@@ -52,19 +43,19 @@ html,body{
 #app{
   width:100%;height:100%;background:var(--bg);
   display:flex;flex-direction:column;
-  overflow-y:auto; overflow-x:hidden;
+  overflow-y:hidden; overflow-x:hidden;
   -webkit-overflow-scrolling:touch;
   padding:0 0.5cm;
 }
 
 /* ---- 标题区域（底部 = 页面1/8处，独立控制）---- */
 .title-section{
-  flex:0 0 calc(100vh / 8);
+  flex:0 0 var(--title-h);
   display:flex;flex-direction:column;
 }
 /* 时间区域（底部 = 页面1/5处，独立控制，不受标题移动影响） */
 .time-section{
-  flex:0 0 calc(100vh * (1/5 - 1/8));
+  flex:0 0 var(--time-h);
   display:flex;flex-direction:column;
 }
 .time-section .top-bar{
@@ -82,16 +73,17 @@ html,body{
   flex-shrink:0;
   display:flex;align-items:flex-end;justify-content:center;
   color:var(--txt-white);font-size:var(--fs-title);font-weight:bold;
-  letter-spacing:0.5em;white-space:nowrap;
-  padding-bottom:min(0.8vh,0.2cm);
+  letter-spacing:0.165em;white-space:nowrap;
+  padding-bottom:var(--vh08);
 }
+
 
 /* ---- 时间 + 加载 ---- */
 .top-bar{
   flex-shrink:0;
-  margin-top:min(0.8vh,0.3cm);
+  margin-top:var(--vh08);
   display:flex;align-items:center;justify-content:space-between;
-  padding:min(0.6vh, 0.5%) 0;
+  padding:var(--vh06) 0;
 }
 .time{
   color:var(--txt-white);font-size:var(--fs-time);letter-spacing:0.05em;
@@ -100,7 +92,7 @@ html,body{
 .load-btn{
   padding:calc(0.9*var(--vmin)) calc(2.3*var(--vmin));background:var(--btn-orange);color:#fff;
   border:none;border-radius:calc(0.3*var(--vmin));cursor:pointer;font-weight:bold;
-  font-size:calc(2.1*var(--vmin));white-space:nowrap;
+  font-size:calc(2.7*var(--vmin));white-space:nowrap;
 }
 .load-btn:hover{background:var(--btn-hover)}
 .st{font-size:var(--fs-time);font-weight:bold;white-space:nowrap}
@@ -108,28 +100,29 @@ html,body{
 
 /* ---- 输入框区域（金色边框）---- */
 .input-box{
-  flex:5 5 0%;min-height:0;
+  flex:0 0 var(--input-h);min-height:0;
   border:2px solid var(--gold);border-radius:6px;
-  display:flex;flex-direction:column;justify-content:space-evenly;
-  padding:min(1.5vh,0.68cm) 1.5%;
-  margin:min(0.6vh,0.2cm) 0;
+  display:flex;flex-direction:column;justify-content:center;gap:calc(5.334*var(--vmin));
+  padding:0.15cm;
+  margin:var(--vh06) 0;
 }
-/* 输入框下方的弹性垫片，占剩余空间1/6，使输入框高度缩减1/6 */
+/* 输入框下方弹性垫片 */
 .input-spacer{
   flex:1 1 0%;min-height:0;
 }
-/* ---- 底部区域（从按钮到屏幕底 = 1/3 屏高 + 按钮中心偏移）---- */
+/* ---- 底部区域 ---- */
 .bottom-wrap{
-  flex:0 0 calc(100vh / 3 + 1.5vh);
+  flex:0 0 auto;
   display:flex;flex-direction:column;
 }
-/* 按钮与结果之间的弹性间距 */
+/* 按钮与表尺之间的固定间距 = 一行高度 */
 .mid-spacer{
-  flex:1 1 0%;min-height:0;
+  flex:0 0 calc(6.4 * var(--vmin));
+  min-height:0;
 }
-/* 结果下方间距（使结果行位于从下往上约1/7处） */
+/* 结果下方间距（使结果行位于从下往上1/5界面高度处） */
 .bot-spacer{
-  flex:0 0 calc(100vh * 1/7 - 1.5vh);
+  flex:0 0 var(--bot-h);
   min-height:0;
 }
 
@@ -141,47 +134,68 @@ html,body{
 
 .lbl{
   color:var(--txt-label);font-size:var(--fs-lbl);font-weight:bold;
-  white-space:nowrap;flex-shrink:0;margin-right:0.5cm;
+  white-space:nowrap;flex-shrink:0;width:auto;margin-right:calc(1.5*var(--vmin));
 }
 .subl{
   color:var(--txt-label);font-size:var(--fs-subl);
-  white-space:nowrap;margin-right:min(0.3vh,0.15cm);flex-shrink:0;
+  white-space:nowrap;margin-right:0.1em;flex-shrink:0;
 }
 .unit{
   color:var(--txt-label);font-size:var(--fs-unit);
-  white-space:nowrap;flex-shrink:0;
+  white-space:nowrap;flex-shrink:0;margin-right:0;
 }
 .un{
-  color:var(--txt-label);font-size:var(--fs-un);
+  color:var(--txt-label);font-size:calc(1.5*var(--vmin));
   white-space:nowrap;margin-right:0;flex-shrink:0;
 }
+/* 标签+单位两行显示容器 */
+.ulbl{
+  display:flex;flex-direction:column;align-items:center;
+  flex-shrink:0;white-space:nowrap;margin-right:0.1em;
+}
+.ulbl .unit{margin-right:0}
+.ulbl .un{margin-left:0}
+/* 结果标签两行容器 */
+.rlbl{
+  display:flex;flex-direction:column;align-items:center;
+  flex-shrink:0;white-space:nowrap;
+}
+.rlbl .res-un{font-size:calc(2.1*var(--vmin))}
 
 .inp{
-  height:min(3.2vh,1.0cm);min-height:26px;border:none;border-radius:3px;
+  height:calc(6.4*var(--vmin));min-height:23px;border:none;border-radius:3px;
   background:#fff;color:#000;
   font-family:"Courier New",monospace;font-size:var(--fs-inp);padding:0 0.5%;
-  outline:none;flex:1 1 auto;min-width:0;margin-right:min(0.8vh,0.4cm);font-weight:bold;
+  outline:none;flex:1 1 auto;min-width:0;font-weight:bold;
+  margin-left:0.3ch;
 }
-.unit+.inp{margin-left:min(0.3vh,0.15cm)}
 .inp:focus{outline:2px solid #888}
 .inp.err{outline:2px solid #e74c3c}
 
 /* 各行flex比例 */
-.rgun .xg{flex:2}.rgun .yg{flex:2}.rgun .hg{flex:1.5;margin-right:0.2cm}
-.rtgt .xt{flex:2}.rtgt .yt{flex:2}.rtgt .ht{flex:1.5;margin-right:0.2cm}
-.rwx .un{margin-right:0}.rwx .ws{flex:3.3;margin-right:0.2cm}.rwx .wd{flex:3.3;margin-right:0.2cm}.rwx .pr{flex:3.3;margin-right:0.2cm}.rwx .tm{flex:3.3;margin-right:0.2cm}
-.ram .vl{flex:1.7}.ram .pt{flex:1.7}.ram .wt{flex:1.7;margin-right:0.2cm}
+.rgun .xg{flex:2}.rgun .yg{flex:2}.rgun .hg{flex:2}
+.rtgt .xt{flex:2}.rtgt .yt{flex:2}.rtgt .ht{flex:2}
+/* 左垫片：标签后、输入框前，将输入框推到右侧（暂不使用） */
+.lspacer{display:none}
+/* 输入框间弹性间隔 = 输入框宽度的1/3 */
+.gspacer{flex:0.67;min-width:0}
+.rwx .un{margin-right:0}.rwx .ws{flex:1.6}.rwx .wd{flex:2.14}.rwx .pr{flex:1.6}.rwx .tm{flex:1.2}
+.rgap1{flex:0.3;min-width:0} .rgap2{flex:0.2;min-width:0}
+.pushright{margin-left:auto;flex:0;min-width:0}
+.ram .vl{flex:2.67}.ram .pt{flex:2.67}.ram .wt{flex:2.67}
+.rspc3{flex:0;min-width:0}
+.ramend{flex:0.67;min-width:0}
 
 /* ---- 解算按钮 ---- */
 .btn-row{
   flex-shrink:0;
   display:flex;align-items:center;justify-content:center;
-  padding:min(1vh, 0.8%) 0;
+  padding:var(--vh1) 0;
 }
 .calc-btn{
   padding:calc(1.7*var(--vmin)) calc(5.8*var(--vmin));background:var(--btn-orange);color:#fff;
   border:none;border-radius:calc(0.5*var(--vmin));cursor:pointer;font-weight:bold;
-  font-size:calc(3.0*var(--vmin));letter-spacing:0.6em;
+  font-size:calc(3.6*var(--vmin));letter-spacing:0.6em;
 }
 .calc-btn:hover{background:var(--btn-hover)}
 
@@ -203,7 +217,7 @@ html,body{
 /* Toast */
 .toast{
   position:fixed;top:30px;left:50%;transform:translateX(-50%);z-index:9999;
-  padding:8px 24px;border-radius:6px;font-size:calc(2.5*var(--vmin));font-weight:bold;
+  padding:8px 24px;border-radius:6px;font-size:calc(3.1*var(--vmin));font-weight:bold;
   opacity:0;transition:opacity .3s;pointer-events:none;
   background:#333;color:#fff;white-space:nowrap;
 }
@@ -211,6 +225,32 @@ html,body{
 .toast.error{background:#e74c3c}.toast.success{background:#4caf50}
 .toast.warn{background:#f39c12;color:#1a1a2e}
 </style>
+<script>
+(function(){
+  var w=window.innerWidth, h=window.innerHeight;
+  var v=Math.min(w,h)/100, Vh=Math.max(w,h)/100;
+  var r=document.documentElement.style;
+  // 字体间距（vmin 基准）
+  r.setProperty('--vmin',     v+'px','important');
+  r.setProperty('--fs-title', (5.0*v)+'px','important');
+  r.setProperty('--fs-time',  (2.8*v)+'px','important');
+  r.setProperty('--fs-lbl',   (3.4*v)+'px','important');
+  r.setProperty('--fs-subl',  (3.0*v)+'px','important');
+  r.setProperty('--fs-unit',  (2.8*v)+'px','important');
+  r.setProperty('--fs-un',    (2.0*v)+'px','important');
+  r.setProperty('--fs-inp',   (4.0*v)+'px','important');
+  r.setProperty('--fs-res',   (3.8*v)+'px','important');
+  r.setProperty('--fs-res-un',(2.0*v)+'px','important');
+  // 布局高度（vh 基准，锁定竖屏值）
+  r.setProperty('--input-h', (30*Vh - 12.8*v)+'px','important');
+  r.setProperty('--title-h', (12.5*Vh)+'px','important');
+  r.setProperty('--time-h',  (7.5*Vh)+'px','important');
+  r.setProperty('--bot-h',   (20*Vh + 38.4*v)+'px','important');
+  r.setProperty('--vh08',    (0.8*Vh)+'px','important');
+  r.setProperty('--vh06',    (0.6*Vh)+'px','important');
+  r.setProperty('--vh1',     Vh+'px','important');
+})();
+</script>
 </head>
 <body>
 
@@ -242,33 +282,37 @@ html,body{
   <div class="irow rgun">
     <span class="lbl">炮位坐标</span>
     <span class="subl">X</span><input class="inp xg" id="gx" maxlength="5" inputmode="numeric" oninput="UI.coord(this,5)">
+    <div class="gspacer"></div>
     <span class="subl">Y</span><input class="inp yg" id="gy" maxlength="5" inputmode="numeric" oninput="UI.coord(this,5)">
-    <span class="unit">高程</span><span class="un">（m）</span><input class="inp hg" id="gh" maxlength="5" inputmode="numeric">
+    <div class="gspacer"></div>
+    <span class="ulbl"><span class="unit">高程</span><span class="un">（m）</span></span><input class="inp hg" id="gh" maxlength="5" inputmode="numeric">
   </div>
 
   <!-- 目标坐标 -->
   <div class="irow rtgt">
     <span class="lbl">目标坐标</span>
     <span class="subl">X</span><input class="inp xt" id="tx" maxlength="5" inputmode="numeric" oninput="UI.coord(this,5)">
+    <div class="gspacer"></div>
     <span class="subl">Y</span><input class="inp yt" id="ty" maxlength="5" inputmode="numeric" oninput="UI.coord(this,5)">
-    <span class="unit">高程</span><span class="un">（m）</span><input class="inp ht" id="th" maxlength="5" inputmode="numeric">
+    <div class="gspacer"></div>
+    <span class="ulbl"><span class="unit">高程</span><span class="un">（m）</span></span><input class="inp ht" id="th" maxlength="5" inputmode="numeric">
   </div>
 
   <!-- 气象条件 -->
   <div class="irow rwx">
     <span class="lbl">气象条件</span>
-    <span class="unit">风速</span><span class="un">（m/s）</span><input class="inp ws" id="ws" inputmode="decimal" oninput="UI.pre()">
-    <span class="unit">风向</span><span class="un">（密位）</span><input class="inp wd" id="wd" inputmode="numeric" maxlength="4" oninput="UI.pre()">
-    <span class="unit">气压</span><span class="un">（mmHg）</span><input class="inp pr" id="pr" inputmode="decimal">
-    <span class="unit">气温</span><span class="un">（℃）</span><input class="inp tm" id="tm" inputmode="decimal">
+    <span class="ulbl"><span class="unit">风速</span><span class="un">（m/s）</span></span><input class="inp ws" id="ws" inputmode="decimal" oninput="UI.pre()"><div class="rgap1"></div>
+    <span class="ulbl"><span class="unit">风向</span><span class="un">（密位）</span></span><input class="inp wd" id="wd" inputmode="numeric" maxlength="4" oninput="UI.pre()"><div class="rgap2"></div>
+    <span class="ulbl"><span class="unit">气压</span><span class="un">（mmHg）</span></span><input class="inp pr" id="pr" inputmode="decimal">
+    <span class="ulbl" style="margin-left:0.2em"><span class="unit">气温</span><span class="un">（℃）</span></span><input class="inp tm" id="tm" inputmode="decimal">
   </div>
 
   <!-- 弹药条件 -->
   <div class="irow ram">
     <span class="lbl">弹药条件</span>
-    <span class="unit">初速</span><span class="un">（%）</span><input class="inp vl" id="vl" inputmode="decimal">
-    <span class="unit">药温</span><span class="un">（℃）</span><input class="inp pt" id="pt" inputmode="decimal">
-    <span class="unit">弹重符号</span><input class="inp wt" id="wt" inputmode="decimal">
+    <span class="ulbl"><span class="unit">初速</span><span class="un">（%）</span></span><input class="inp vl" id="vl" inputmode="decimal"><div class="rspc3"></div><div class="gspacer"></div>
+    <span class="ulbl"><span class="unit">药温</span><span class="un">（℃）</span></span><input class="inp pt" id="pt" inputmode="decimal"><div class="rspc3"></div><div class="gspacer"></div>
+    <span class="ulbl"><span class="unit">弹重符号</span></span><input class="inp wt" id="wt" inputmode="decimal">
   </div>
 
 </div>
@@ -285,11 +329,11 @@ html,body{
 
 <div class="res-row">
   <div class="res-item">
-    <span class="res-lbl">表尺</span><span class="res-un">（密位）</span>
+    <span class="rlbl"><span class="res-lbl">表尺</span><span class="res-un">（密位）</span></span>
     <input class="res-inp" id="rs" readonly>
   </div>
   <div class="res-item">
-    <span class="res-lbl">方向</span><span class="res-un">（密位）</span>
+    <span class="rlbl"><span class="res-lbl">方向</span><span class="res-un">（密位）</span></span>
     <input class="res-inp" id="rd" readonly>
   </div>
 </div>
