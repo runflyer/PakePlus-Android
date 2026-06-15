@@ -1,0 +1,998 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="format-detection" content="telephone=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>视频下载工具</title>
+<style>
+  :root {
+    --bg: #f0f2f5;
+    --card: #ffffff;
+    --primary: #4f46e5;
+    --primary-light: #818cf8;
+    --text: #1e293b;
+    --text-secondary: #64748b;
+    --border: #e2e8f0;
+    --success: #10b981;
+    --error: #ef4444;
+    --radius: 16px;
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    background: var(--bg);
+    min-height: 100vh;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  /* 顶部导航 */
+  .app-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    padding: calc(44px + var(--safe-top)) 20px 16px;
+    color: #fff;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    box-shadow: 0 2px 12px rgba(102,126,234,0.3);
+    text-align: center;
+  }
+  .app-header h1 {
+    font-size: 20px;
+    font-weight: 700;
+  }
+  .app-header .subtitle {
+    font-size: 12px;
+    opacity: 0.85;
+    margin-top: 4px;
+  }
+  .header-badge {
+    background: rgba(255,255,255,0.2);
+    padding: 2px 10px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 500;
+  }
+
+  /* 服务器地址栏 */
+  .server-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 14px;
+    background: #fff;
+    border-bottom: 1px solid #f1f5f9;
+    font-size: 12px;
+    color: var(--text-secondary);
+    position: sticky;
+    top: 0;
+    z-index: 9;
+  }
+  .server-bar input {
+    flex: 1;
+    height: 32px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 0 10px;
+    font-size: 12px;
+    color: var(--text);
+    background: #f8fafc;
+    outline: none;
+  }
+  .server-bar input:focus {
+    border-color: var(--primary-light);
+    background: #fff;
+  }
+  .server-bar .dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: #cbd5e1;
+    flex-shrink: 0;
+  }
+  .server-bar .dot.online { background: #10b981; }
+  .server-bar .dot.offline { background: #ef4444; }
+  .btn-start {
+    height: 32px; padding: 0 12px;
+    border-radius: 8px; border: none;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: #fff; font-size: 12px; font-weight: 600;
+    cursor: pointer; white-space: nowrap;
+    flex-shrink: 0; transition: all 0.15s;
+  }
+  .btn-start:active { transform: scale(0.95); }
+  .btn-start:disabled { background: #cbd5e1; }
+  .btn-start.running { background: #10b981; pointer-events: none; }
+
+  /* 主内容区 */
+  .main-content {
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding-bottom: calc(20px + var(--safe-bottom));
+  }
+
+  .card {
+    background: var(--card);
+    border-radius: var(--radius);
+    padding: 16px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+  }
+
+  /* 输入区 */
+  .input-row {
+    display: flex;
+    gap: 10px;
+  }
+  .input-row input {
+    flex: 1;
+    height: 46px;
+    border: 2px solid var(--border);
+    border-radius: 12px;
+    padding: 0 14px;
+    font-size: 14px;
+    color: var(--text);
+    outline: none;
+    background: #f8fafc;
+    transition: border-color 0.2s;
+  }
+  .input-row input:focus { border-color: var(--primary-light); background: #fff; }
+  .input-row input::placeholder { color: #c0c8d4; }
+
+  .btn {
+    height: 46px;
+    border-radius: 12px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    white-space: nowrap;
+    padding: 0 18px;
+  }
+  .btn:active { transform: scale(0.96); }
+  .btn-primary {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: #fff;
+    width: 100%;
+    margin-top: 10px;
+  }
+  .btn-primary:disabled { background: #cbd5e1; transform: none; }
+  .btn-download {
+    width: 100%;
+    height: 52px;
+    border-radius: 14px;
+    font-size: 16px;
+    background: linear-gradient(135deg, #10b981, #059669);
+    color: #fff;
+    box-shadow: 0 4px 16px rgba(16,185,129,0.25);
+  }
+  .btn-download:disabled { background: #cbd5e1; box-shadow: none; }
+
+  /* 视频信息 */
+  .video-info { display: none; }
+  .video-info.show { display: block; }
+  .video-preview {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+  }
+  .video-thumb {
+    width: 110px; min-width: 110px;
+    height: 72px;
+    border-radius: 10px;
+    background: #f1f5f9;
+    overflow: hidden;
+  }
+  .video-thumb img { width: 100%; height: 100%; object-fit: cover; }
+  .video-thumb .no-thumb {
+    width: 100%; height: 100%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 28px;
+    background: linear-gradient(135deg, #e0e7ff, #ddd6fe);
+  }
+  .video-meta { flex: 1; min-width: 0; }
+  .video-meta h3 {
+    font-size: 14px; font-weight: 600; color: var(--text);
+    line-height: 1.3;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .video-meta .meta-row {
+    display: flex; gap: 10px; flex-wrap: wrap;
+    margin-top: 6px; font-size: 11px; color: var(--text-secondary);
+  }
+  .meta-row span { display: flex; align-items: center; gap: 3px; }
+
+  /* 保存设置 */
+  .field-label {
+    font-size: 13px; font-weight: 600; color: var(--text);
+    display: block; margin-bottom: 6px;
+  }
+  .field-input {
+    width: 100%; height: 42px;
+    border: 2px solid var(--border);
+    border-radius: 10px;
+    padding: 0 12px;
+    font-size: 14px; color: var(--text);
+    background: #f8fafc; outline: none;
+  }
+  .field-input:focus { border-color: var(--primary-light); }
+
+  /* 目录选择器 */
+  .path-picker {
+    position: relative;
+    width: 100%;
+    height: 48px;
+    border: 2px solid var(--border);
+    border-radius: 10px;
+    padding: 0 12px;
+    background: #f8fafc;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    transition: border-color 0.2s;
+    overflow: hidden;
+  }
+  .path-picker:active, .path-picker:focus-within { border-color: var(--primary-light); }
+  .path-picker-icon { font-size: 18px; flex-shrink: 0; }
+  .path-picker-text {
+    flex: 1; font-size: 13px; color: var(--text);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    line-height: 1.3;
+  }
+  .path-picker-text.placeholder { color: #94a3b8; }
+  .path-picker-arrow { color: #94a3b8; font-size: 14px; flex-shrink: 0; }
+
+  /* 目录选择弹窗 */
+  .dir-overlay {
+    position: fixed; top:0; left:0; right:0; bottom:0;
+    background: rgba(0,0,0,0.45); z-index: 200;
+    display: none; align-items: flex-end; justify-content: center;
+  }
+  .dir-overlay.show { display: flex; }
+  .dir-panel {
+    width: 100%; max-width: 500px;
+    max-height: 70vh; background: #fff;
+    border-radius: 18px 18px 0 0;
+    padding: 20px 16px calc(16px + env(safe-area-inset-bottom));
+    box-shadow: 0 -4px 24px rgba(0,0,0,0.15);
+    animation: slideUp .25s ease-out;
+  }
+  @keyframes slideUp { from{transform:translateY(100%);} to{transform:translateY(0);} }
+  .dir-panel-title {
+    font-size: 16px; font-weight: 700; text-align: center;
+    margin-bottom: 16px; color: var(--text);
+  }
+  .dir-list { display: flex; flex-direction: column; gap: 6px; }
+  .dir-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 14px 14px; border-radius: 12px;
+    font-size: 14px; color: var(--text);
+    background: transparent; border: none; cursor: pointer;
+    transition: background .15s; width: 100%;
+    text-align: left;
+  }
+  .dir-item:active { background: #eef2ff; transform: scale(.99); }
+  .dir-item-icon { font-size: 22px; flex-shrink: 0; }
+  .dir-item-info { flex: 1; min-width: 0; }
+  .dir-item-name { font-weight: 600; font-size: 14px; }
+  .dir-item-path { font-size: 11px; color: var(--text-secondary); margin-top: 2px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .dir-item-check { font-size: 18px; flex-shrink: 0; opacity: 0; color: var(--primary); }
+  .dir-item.selected { background: #eef2ff; }
+  .dir-item.selected .dir-item-check { opacity: 1; }
+  .dir-cancel-btn {
+    margin-top: 14px; width: 100%; height: 44px;
+    border-radius: 22px; border: 1px solid var(--border);
+    background: #fff; font-size: 14px; color: var(--text-secondary);
+    cursor: pointer;
+  }
+
+  /* 进度 */
+  .progress-section { display: none; }
+  .progress-section.show { display: block; }
+  .progress-header {
+    display: flex; justify-content: space-between;
+    font-size: 12px; color: var(--text-secondary); margin-bottom: 6px;
+  }
+  .progress-bar-wrap {
+    height: 6px; background: #f1f5f9;
+    border-radius: 3px; overflow: hidden;
+  }
+  .progress-bar-fill {
+    height: 100%; border-radius: 3px;
+    background: linear-gradient(90deg, #667eea, #764ba2);
+    transition: width 0.3s; width: 0%;
+  }
+  .progress-detail {
+    margin-top: 8px; font-size: 12px; color: var(--text-secondary);
+  }
+
+  /* Toast */
+  .toast {
+    position: fixed; top: 80px; left: 50%; transform: translateX(-50%);
+    padding: 10px 22px; border-radius: 20px;
+    font-size: 13px; font-weight: 600; color: #fff;
+    z-index: 999; opacity: 0; transition: opacity 0.3s;
+    pointer-events: none; white-space: nowrap;
+  }
+  .toast.show { opacity: 1; }
+  .toast.success { background: #10b981; }
+  .toast.error { background: #ef4444; }
+
+  /* Loading spinner */
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .spinner {
+    width: 18px; height: 18px;
+    border: 2.5px solid rgba(255,255,255,0.3);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    display: inline-block;
+  }
+</style>
+</head>
+<body>
+
+<!-- 顶部 -->
+<div class="app-header">
+  <h1>视频下载工具</h1>
+</div>
+
+<!-- 服务器地址 -->
+<div class="server-bar">
+  <span>🔗 服务:</span>
+  <input type="text" id="serverUrl" placeholder="http://127.0.0.1:5000">
+  <span class="dot offline" id="serverDot"></span>
+  <button class="btn-start" id="startServerBtn" title="启动 Termux 后端服务">🚀 启动服务</button>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<!-- 主体内容 -->
+<div class="main-content">
+  <!-- 输入卡片 -->
+  <div class="card">
+    <div class="input-row">
+      <input type="url" id="urlInput" placeholder="粘贴视频链接..." autocomplete="off" autocorrect="off">
+    </div>
+    <button class="btn btn-primary" id="parseBtn">🔍 解析视频</button>
+  </div>
+
+  <!-- 视频信息 -->
+  <div class="card video-info" id="videoInfo">
+    <div class="video-preview">
+      <div class="video-thumb" id="videoThumb"><div class="no-thumb">🎬</div></div>
+      <div class="video-meta">
+        <h3 id="videoTitle">--</h3>
+        <div class="meta-row">
+          <span>👤 <span id="videoUploader">--</span></span>
+          <span>⏱ <span id="videoDuration">--</span></span>
+          <span>📼 <span id="videoSource">--</span></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 文件名称 -->
+  <div class="card">
+    <label style="font-size:13px;font-weight:600;color:var(--text);display:block;margin-bottom:8px;">✏️ 文件名称</label>
+    <input type="text" id="fileName" placeholder="输入视频文件名（不含扩展名）"
+      style="width:100%;height:44px;border:2px solid var(--border);border-radius:10px;padding:0 12px;font-size:14px;color:var(--text);background:#f8fafc;outline:none;">
+  </div>
+
+  <!-- 下载按钮 -->
+  <button class="btn btn-download" id="downloadBtn" disabled>⬇️ 开始下载</button>
+
+  <!-- 进度 -->
+  <div class="card progress-section" id="progressSection">
+    <div class="progress-header">
+      <span id="progressStatus">准备中...</span>
+      <span id="progressPercent">0%</span>
+    </div>
+    <div class="progress-bar-wrap">
+      <div class="progress-bar-fill" id="progressBar"></div>
+    </div>
+    <div class="progress-detail" id="progressDetail"></div>
+  </div>
+</div>
+
+<script>
+  // ========== 全局状态 ==========
+  const $ = id => document.getElementById(id);
+  const setBtnText = (btn, text) => { btn.innerHTML = '<span class="spinner"></span> ' + text; };
+  let videoInfo = null;
+  let currentTaskId = null;
+  let pollTimer = null;
+  const PLATFORM_NAMES = {
+    'douyin': '抖音', 'kuaishou': '快手', 'xiaohongshu': '小红书',
+    'bilibili': 'B站', 'ixigua': '西瓜视频', 'weishi': '腾讯微视',
+    'weixin_channels': '微信视频号',
+  };
+
+  // ========== 服务地址管理 ==========
+  function getServer() {
+    const url = ($('serverUrl').value || '').trim().replace(/\/+$/, '');
+    return url || localStorage.getItem('vd_server') || 'http://127.0.0.1:5000';
+  }
+
+  function saveServer() {
+    const url = ($('serverUrl').value || '').trim().replace(/\/+$/, '');
+    if (url) localStorage.setItem('vd_server', url);
+  }
+
+  async function checkServer() {
+    const url = getServer();
+    const dot = $('serverDot');
+    const btn = $('startServerBtn');
+    if (!url) {
+      dot.className = 'dot offline';
+      if (btn) { btn.textContent = '🚀 启动服务'; btn.classList.remove('running'); btn.disabled = false; }
+      return false;
+    }
+    try {
+      const r = await fetch(getServer() + '/api/browse', { signal: AbortSignal.timeout(5000) });
+      if (r.ok) {
+        dot.className = 'dot online';
+        if (btn && !btn.classList.contains('running')) {
+          btn.textContent = '✅ 已连接';
+          btn.classList.add('running');
+          btn.disabled = false;
+        }
+        return true;
+      }
+    } catch (e) {}
+    dot.className = 'dot offline';
+    if (btn && btn.classList.contains('running')) {
+      btn.textContent = '🚀 启动服务';
+      btn.classList.remove('running');
+      btn.disabled = false;
+    }
+    return false;
+  }
+
+  // ========== API 调用 ==========
+  async function api(path, opts = {}, timeoutMs = 30000) {
+    const url = getServer() + path;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const res = await fetch(url, {
+        ...opts,
+        signal: controller.signal,
+        headers: { 'Content-Type': 'application/json', ...(opts.headers || {}) },
+      });
+      clearTimeout(timer);
+      return res.json();
+    } catch (e) {
+      clearTimeout(timer);
+      if (e.name === 'AbortError') {
+        throw new Error('请求超时(30秒)');
+      }
+      throw e;
+    }
+  }
+
+  // ========== Toast ==========
+  function showToast(msg, type = 'success') {
+    const t = $('toast');
+    t.textContent = msg;
+    t.className = `toast ${type} show`;
+    clearTimeout(t._t);
+    t._t = setTimeout(() => t.classList.remove('show'), 2500);
+  }
+
+  function formatDuration(s) {
+    if (!s) return '--';
+    const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
+    if (h > 0) return `${h}:${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
+    return `${m}:${String(sec).padStart(2,'0')}`;
+  }
+
+  function getPlatformName(info) {
+    const p = info._platform || info.extractor || '';
+    if (PLATFORM_NAMES[p]) return PLATFORM_NAMES[p];
+    if (p.toLowerCase().includes('bili')) return 'B站';
+    if (p.toLowerCase().includes('douyin')) return '抖音';
+    if (p.toLowerCase().includes('ixigua')) return '西瓜视频';
+    if (p.toLowerCase().includes('xiaohongshu')) return '小红书';
+    return p || '未知平台';
+  }
+
+  // ========== URL 提取 ==========
+  function extractUrlFromText(text) {
+    if (!text) return '';
+    // 先去除 HTML 标签（如 <br/> <span> 等）
+    var clean = text.replace(/<[^>]*>/g, ' ').replace(/&[a-z]+;/gi, ' ');
+    // 匹配完整 URL
+    var m = clean.match(/https?:\/\/[^\s\u4e00-\u9fff\u3000-\u303f\uff00-\uffef<>"「」『』【】()（）\[\]{}，,。；;！!？?：:、'"]+/i);
+    if (m) return m[0].replace(/[`'"]+$/, '');
+    // 容错：不完整 URL
+    m = clean.match(/(?:https?:\/\/)?[\w-]+\.(?:com|cn|tv)\/[^\s\u4e00-\u9fff<>"「」『』]+/i);
+    return m ? (m[0].startsWith('http') ? m[0] : 'https://' + m[0]) : '';
+  }
+
+  // ========== 解析（三步渐进：提取URL → 解析短链 → 获取视频信息）==========
+  async function handleParse() {
+    var raw = ($('urlInput').value || '').trim();
+    var url = extractUrlFromText(raw);
+    if (url) {
+      $('urlInput').value = url;
+    } else {
+      url = raw;
+    }
+    if (!url) return showToast('请输入视频地址', 'error');
+
+    const btn = $('parseBtn');
+    btn.disabled = true;
+    setBtnText(btn, '提取地址...');
+    videoInfo = null;
+    $('videoInfo').classList.remove('show');
+    $('downloadBtn').disabled = true;
+    $('progressSection').classList.remove('show');
+
+    try {
+      // 第一步：快速解析短链（仅重定向，1~3秒）
+      if (/\/is\/|\/s\/|b23\.tv/i.test(url)) {
+        setBtnText(btn, '解析短链...');
+        try {
+          const qr = await api('/api/quick-resolve', {
+            method: 'POST', body: JSON.stringify({ url }),
+          }, 6000);
+          if (qr.success && qr.changed) {
+            url = qr.resolved;
+            $('urlInput').value = url;
+            showToast('地址已解析 ✅');
+          }
+        } catch (e) {
+          // 快速解析失败不影响后续，继续用原链
+        }
+      }
+
+      // 第二步：完整解析视频信息（yt-dlp 极速模式）
+      setBtnText(btn, '获取视频信息...');
+      const data = await api('/api/parse', {
+        method: 'POST', body: JSON.stringify({ url }),
+      }, 30000);
+      if (!data.success) {
+        showToast(data.error || '解析失败', 'error');
+        return;
+      }
+      videoInfo = data.data;
+      renderVideoInfo(videoInfo);
+      showToast('解析成功 ✅');
+      var fnInput = $('fileName');
+      if (videoInfo.title && fnInput && !fnInput.value.trim()) {
+        fnInput.value = videoInfo.title.replace(/[<>:"/\\|?*]/g, '_').substring(0, 80);
+      }
+    } catch (e) {
+      showToast('解析失败: ' + (e.message || '无法连接服务器'), 'error');
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = '🔍 解析视频';
+    }
+  }
+
+  function renderVideoInfo(info) {
+    const thumb = $('videoThumb');
+    if (info.thumbnail) {
+      thumb.innerHTML = `<img src="${info.thumbnail}" alt="封面" onerror="this.parentElement.innerHTML='<div class=\\'no-thumb\\'>🎬</div>'">`;
+    } else {
+      thumb.innerHTML = '<div class="no-thumb">🎬</div>';
+    }
+    $('videoTitle').textContent = info.title || '未知标题';
+    $('videoUploader').textContent = info.uploader || '--';
+    $('videoDuration').textContent = formatDuration(info.duration);
+    $('videoSource').textContent = getPlatformName(info);
+    $('videoInfo').classList.add('show');
+    $('downloadBtn').disabled = false;
+  }
+
+  // ========== 下载 ==========
+  function startPolling() {
+    if (pollTimer) clearInterval(pollTimer);
+    pollTimer = setInterval(async () => {
+      if (!currentTaskId) { clearInterval(pollTimer); pollTimer = null; return; }
+      try {
+        const data = await api(`/api/progress/${currentTaskId}`);
+        if (!data.success) return;
+        const pct = Math.round(data.progress);
+        $('progressPercent').textContent = pct + '%';
+        $('progressBar').style.width = pct + '%';
+
+        if (data.status === 'downloading') {
+          $('progressStatus').innerHTML = '<span class="spinner" style="width:14px;height:14px;border-width:2px;border-color:rgba(79,70,229,0.2);border-top-color:#4f46e5;"></span> 下载中...';
+        } else if (data.status === 'completed') {
+          $('progressStatus').textContent = '✅ 下载完成!';
+          $('progressBar').style.width = '100%';
+          $('progressPercent').textContent = '100%';
+          $('progressDetail').innerHTML = '📂 已保存到服务器: <strong>' + (data.output_file || '下载目录') + '</strong>';
+          clearInterval(pollTimer); pollTimer = null;
+          $('downloadBtn').disabled = false;
+          $('downloadBtn').innerHTML = '⬇️ 开始下载';
+          showToast('下载完成! 🎉');
+          currentTaskId = null;
+        } else if (data.status === 'failed') {
+          $('progressStatus').textContent = '❌ 下载失败';
+          $('progressDetail').textContent = data.error || '未知错误';
+          clearInterval(pollTimer); pollTimer = null;
+          $('downloadBtn').disabled = false;
+          $('downloadBtn').innerHTML = '⬇️ 开始下载';
+          showToast('下载失败', 'error');
+          currentTaskId = null;
+        }
+      } catch (e) {}
+    }, 800);
+  }
+
+  async function handleDownload() {
+    if (!videoInfo) return showToast('请先解析视频', 'error');
+    var fnInput = $('fileName');
+    const fileName = (fnInput ? (fnInput.value || '').trim() : '') || videoInfo.title || 'video';
+
+    $('downloadBtn').disabled = true;
+    $('downloadBtn').innerHTML = '<span class="spinner"></span> 启动中...';
+    $('progressSection').classList.add('show');
+    $('progressStatus').textContent = '正在启动下载...';
+    $('progressPercent').textContent = '0%';
+    $('progressBar').style.width = '0%';
+    $('progressDetail').textContent = '';
+
+    try {
+      const data = await api('/api/download', {
+        method: 'POST',
+        body: JSON.stringify({
+          url: videoInfo.webpage_url || ($('urlInput').value || '').trim(),
+          file_name: fileName,
+          save_path: '',
+          format_id: 'best',
+        }),
+      });
+      if (!data.success) {
+        showToast(data.error || '下载失败', 'error');
+        $('progressSection').classList.remove('show');
+        $('downloadBtn').disabled = false;
+        $('downloadBtn').innerHTML = '⬇️ 开始下载';
+        return;
+      }
+      currentTaskId = data.task_id;
+      startPolling();
+    } catch (e) {
+      showToast('网络错误: ' + (e.message || '请求超时'), 'error');
+      $('progressSection').classList.remove('show');
+      $('downloadBtn').disabled = false;
+      $('downloadBtn').innerHTML = '⬇️ 开始下载';
+    }
+  }
+
+  // ========== 剪贴板 ==========
+  function copyToClipboard(text) {
+    try {
+      const Context = plus.android.importClass('android.content.Context');
+      const ClipData = plus.android.importClass('android.content.ClipData');
+      const main = plus.android.runtimeMainActivity();
+      const cm = main.getSystemService(Context.CLIPBOARD_SERVICE);
+      const clip = ClipData.newPlainText('deploy_cmd', text);
+      cm.setPrimaryClip(clip);
+      return true;
+    } catch (e) {
+      console.warn('[Clipboard]', e.message);
+      return false;
+    }
+  }
+
+  // ========== 文件部署（从 APK 资产 → 手机 Downloads）==========
+  const DEPLOY_FILES = ['app.py', 'start.sh', 'deploy.sh'];
+
+  function readAssetFile(filename) {
+    return new Promise((resolve, reject) => {
+      plus.io.resolveLocalFileSystemURL('_www/assets/', function(dirEntry) {
+        dirEntry.getFile(filename, {create: false}, function(fileEntry) {
+          fileEntry.file(function(file) {
+            var reader = new plus.io.FileReader();
+            reader.onloadend = function(e) { resolve(e.target.result); };
+            reader.onerror = function(e) { reject(e); };
+            reader.readAsText(file, 'utf-8');
+          }, reject);
+        }, reject);
+      }, reject);
+    });
+  }
+
+  function writeFileToDownload(filename, content) {
+    return new Promise((resolve, reject) => {
+      try {
+        var File = plus.android.importClass('java.io.File');
+        var FileOutputStream = plus.android.importClass('java.io.FileOutputStream');
+        var Environment = plus.android.importClass('android.os.Environment');
+
+        var downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
+        var file = new File(downloadsDir, filename);
+        var fos = new FileOutputStream(file);
+        var bytes = plus.android.invoke(content, 'getBytes', ['java.lang.String'], 'UTF-8');
+        fos.write(bytes);
+        fos.close();
+        console.log('[Deploy] Wrote:', filename, 'size:', bytes.length);
+        resolve(true);
+      } catch (e) {
+        console.error('[Deploy] Write failed:', filename, e.message);
+        reject(e);
+      }
+    });
+  }
+
+  async function deployFilesToDevice() {
+    if (typeof plus === 'undefined' || !plus.android) {
+      showToast('💡 请在 Termux 中手动复制 app.py 等文件', 'error');
+      return false;
+    }
+
+    var deployed = 0;
+    for (var i = 0; i < DEPLOY_FILES.length; i++) {
+      var fn = DEPLOY_FILES[i];
+      try {
+        var content = await readAssetFile(fn);
+        if (!content || content.length < 10) {
+          console.warn('[Deploy] File empty/short:', fn);
+          continue;
+        }
+        await writeFileToDownload(fn, content);
+        deployed++;
+      } catch (e) {
+        console.warn('[Deploy] Skipped:', fn, e.message || e);
+        // 继续尝试其他文件
+      }
+    }
+    console.log('[Deploy] Total deployed:', deployed, '/', DEPLOY_FILES.length);
+    return deployed >= 2; // 至少 app.py + deploy.sh 成功
+  }
+
+  // ========== 启动 Termux 后端服务 ==========
+  async function startTermuxService() {
+    const btn = $('startServerBtn');
+    btn.disabled = true;
+    btn.textContent = '⏳ 准备中...';
+
+    // 浏览器中运行：直接提示手动操作
+    if (typeof plus === 'undefined' || !plus.android) {
+      showToast('💡 请在 Termux 中运行 deploy.sh', 'error');
+      btn.disabled = false;
+      btn.textContent = '🚀 启动服务';
+      return;
+    }
+
+    // 已连接？直接返回
+    if (await checkServer()) {
+      btn.textContent = '✅ 已连接';
+      btn.classList.add('running');
+      btn.disabled = false;
+      showToast('服务已连接 ✅');
+      return;
+    }
+
+    // ════════════════════════════════════════
+    //  Step 1: 从 APK 资产里解出脚本文件
+    //  写入到手机 /sdcard/Download/
+    // ════════════════════════════════════════
+    showToast('📦 正在部署脚本到手机...');
+    btn.textContent = '📦 部署中...';
+    const deployed = await deployFilesToDevice();
+
+    if (!deployed) {
+      // 部署失败：直接用交互方式打开 Termux
+      showToast('⚠️ 自动部署失败\n切换到手动模式', 'error');
+      btn.disabled = false;
+      btn.textContent = '🚀 重试启动';
+      try {
+        const main = plus.android.runtimeMainActivity();
+        const intent = main.getPackageManager().getLaunchIntentForPackage('com.termux');
+        if (intent) { main.startActivity(intent); }
+      } catch(e) {}
+      return;
+    }
+    console.log('[Deploy] All files deployed to Downloads');
+
+    // ════════════════════════════════════════
+    //  Step 2: 触发 Termux 执行 deploy.sh
+    //  deploy.sh 会：安装依赖 → 复制文件 → 启动服务
+    // ════════════════════════════════════════
+    btn.textContent = '🚀 启动 Termux...';
+
+    // Termux 中对应的脚本路径
+    // 首次需 termux-setup-storage 授权后 ~/storage/downloads 才存在
+    const DEPLOY_SCRIPT = '/data/data/com.termux/files/home/storage/downloads/deploy.sh';
+    const WORKDIR = '/data/data/com.termux/files/home';
+    let serviceTriggered = false;
+
+    // ====== 方式1: am startservice（绕过自定义权限限制）======
+    try {
+      const Runtime = plus.android.importClass('java.lang.Runtime');
+      const runtime = Runtime.getRuntime();
+      const cmd = [
+        'am', 'startservice', '--user', '0',
+        '-n', 'com.termux/com.termux.app.RunCommandService',
+        '-a', 'com.termux.RUN_COMMAND',
+        '--es', 'com.termux.RUN_COMMAND_PATH', DEPLOY_SCRIPT,
+        '--es', 'com.termux.RUN_COMMAND_WORKDIR', WORKDIR,
+        '--ez', 'com.termux.RUN_COMMAND_BACKGROUND', 'true'
+      ].join(' ');
+      runtime.exec(cmd);
+      serviceTriggered = true;
+      console.log('[Termux] am startservice → deploy.sh');
+    } catch (e1) {
+      console.log('[Termux] am startservice failed:', e1.message);
+    }
+
+    // ====== 方式2: Intent startService ======
+    if (!serviceTriggered) {
+      try {
+        const Intent = plus.android.importClass('android.content.Intent');
+        const intent = new Intent();
+        intent.setClassName('com.termux', 'com.termux.app.RunCommandService');
+        intent.setAction('com.termux.RUN_COMMAND');
+        intent.putExtra('com.termux.RUN_COMMAND_PATH', DEPLOY_SCRIPT);
+        intent.putExtra('com.termux.RUN_COMMAND_WORKDIR', WORKDIR);
+        intent.putExtra('com.termux.RUN_COMMAND_BACKGROUND', true);
+        const main = plus.android.runtimeMainActivity();
+        main.startService(intent);
+        serviceTriggered = true;
+        console.log('[Termux] Intent startService sent');
+      } catch (e2) {
+        console.log('[Termux] Intent startService failed:', e2.message);
+      }
+    }
+
+    // ====== 方式3: 打开 Termux + 命令已复制到剪贴板 ======
+    if (!serviceTriggered) {
+      try {
+        const main = plus.android.runtimeMainActivity();
+        const pm = main.getPackageManager();
+        const launchIntent = pm.getLaunchIntentForPackage('com.termux');
+        if (launchIntent) {
+          main.startActivity(launchIntent);
+          console.log('[Termux] App opened via launchIntent');
+
+          // 自动复制命令到剪贴板
+          const cmd = 'bash ~/storage/downloads/deploy.sh';
+          const copied = copyToClipboard(cmd);
+          console.log('[Termux] Clipboard copy:', copied);
+
+          showToast(
+            (copied ? '📋 命令已复制！\n' : '') +
+            '在 Termux 中:\n' +
+            '长按屏幕 → 粘贴 → 回车\n' +
+            '⏱ 首次约3-8分钟\n' +
+            '💡 仅此一次，之后全自动',
+            'info'
+          );
+          btn.disabled = false;
+          btn.textContent = '🚀 重试启动';
+          return;
+        }
+      } catch (e4) {
+        console.log('[Termux] open app failed:', e4.message);
+      }
+      showToast('❌ 未检测到 Termux\n请从 f-droid.org 安装', 'error');
+      btn.disabled = false;
+      btn.textContent = '🚀 启动服务';
+      return;
+    }
+
+    // ════════════════════════════════════════
+    //  Step 3: 轮询等待服务就绪
+    //  更新/重装：5-15 秒
+    //  首次安装：3-8 分钟（pkg+pip 下载依赖）
+    // ════════════════════════════════════════
+    showToast('⏳ 服务启动中，首次约需 3-8 分钟...');
+    let lastPhaseToast = 0;
+    for (let i = 0; i < 180; i++) {
+      await new Promise(r => setTimeout(r, 2000));
+      if (await checkServer()) {
+        // 服务就绪！
+        btn.textContent = '✅ 已连接';
+        btn.classList.add('running');
+        btn.disabled = false;
+        showToast('🎉 服务就绪！');
+        cachedDirs = null; // 让目录选择器重新加载
+        try {
+          const d = await api('/api/browse');
+          if (d.success && d.directories.length > 0) {
+            $('savePath').value = d.directories[0].path;
+            $('pathPickerText').textContent = d.directories[0].path + ' (' + d.directories[0].name + ')';
+            $('pathPickerText').classList.remove('placeholder');
+          }
+        } catch (e) {}
+        return;
+      }
+      const elapsed = (i + 1) * 2;
+      btn.textContent = `⏳ ${elapsed}s`;
+
+      // 分阶段提示
+      if (elapsed === 20) {
+        showToast('⏳ 正在安装依赖，请稍候...');
+      } else if (elapsed === 60) {
+        showToast('⏳ 仍在安装中...\n（下载 Python 包较慢）');
+      } else if (elapsed >= 90 && elapsed - lastPhaseToast >= 30) {
+        lastPhaseToast = elapsed;
+        showToast('⏳ 首次安装可能较慢\n请确保网络通畅');
+      }
+    }
+
+    // ════════════════════════════════════════
+    //  Step 4: 超时处理
+    //  可能原因：Termux 后台执行 RUN_COMMAND 时
+    //  脚本里的 termux-setup-storage 弹权限窗无法交互
+    // ════════════════════════════════════════
+    showToast('⏰ 启动超时（6分钟）\n自动触发可能因权限弹窗卡住', 'error');
+    btn.disabled = false;
+    btn.textContent = '🔄 重试启动';
+
+    try {
+      const main = plus.android.runtimeMainActivity();
+      const pm = main.getPackageManager();
+      const launchIntent = pm.getLaunchIntentForPackage('com.termux');
+      if (launchIntent) {
+        main.startActivity(launchIntent);
+        var cmd = 'bash ~/storage/downloads/deploy.sh';
+        var copied = copyToClipboard(cmd);
+        showToast(
+          (copied ? '📋 命令已复制！\n' : '') +
+          '在 Termux 中长按粘贴+回车\n' +
+          '⏱ 首次约 3-8 分钟\n' +
+          '💡 仅此一次，下回点按钮即可',
+          'info'
+        );
+      }
+    } catch (e) {
+      showToast('💡 打开 Termux → 粘贴命令 → 回车\n' +
+                '下回点按钮即可自动启动', 'info');
+    }
+  }
+
+  // ========== 目录选择器 ==========
+  // ========== 事件绑定 ==========
+  function init() {
+    // 默认本地地址（手机 Termux 运行后端时使用）
+    const saved = localStorage.getItem('vd_server') || 'http://127.0.0.1:5000';
+    $('serverUrl').value = saved;
+    $('serverUrl').addEventListener('blur', () => { saveServer(); checkServer(); });
+    $('serverUrl').addEventListener('keydown', e => { if (e.key === 'Enter') { saveServer(); checkServer(); } });
+
+    // 启动服务按钮
+    $('startServerBtn').addEventListener('click', startTermuxService);
+
+    $('parseBtn').addEventListener('click', handleParse);
+    $('urlInput').addEventListener('keydown', e => { if (e.key === 'Enter') handleParse(); });
+    $('downloadBtn').addEventListener('click', handleDownload);
+
+    // 自动连接服务器
+    (async () => {
+      const ok = await checkServer();
+      if (ok) {
+        $('startServerBtn').textContent = '✅ 已连接';
+        $('startServerBtn').classList.add('running');
+      }
+    })();
+  }
+
+  window.addEventListener('beforeunload', () => { if (pollTimer) clearInterval(pollTimer); });
+  init();
+</script>
+</body>
+</html>
